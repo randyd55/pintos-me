@@ -40,5 +40,13 @@ int getFd(void);
 
 bool check_pointer(uint32_t * stack_ptr);
 
+//filesys commands
+bool chdir (const char *dir);
+bool mkdir (const char *dir);
+bool readdir (int fd, char *name);
+bool isdir (int fd);
+int inumber (int fd);
+
+
 //Chineye Done
 #endif /* userprog/syscall.h */

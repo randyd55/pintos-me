@@ -116,6 +116,36 @@ syscall_handler (struct intr_frame *f UNUSED)
 /**
  * Checks that pointer is within valid access space
  */
+
+bool 
+chdir (const char *dir){
+  return true;
+}
+
+bool 
+mkdir (const char *dir){
+  return true;
+}
+
+bool 
+readdir (int fd, char *name){
+  return true;
+}
+
+bool 
+isdir (int fd){
+  return true;
+}
+
+int 
+inumber (int fd){
+  return true;
+}
+
+
+
+
+
 bool
 check_pointer (uint32_t * stack_ptr)
 {
