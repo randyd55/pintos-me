@@ -15,7 +15,10 @@ free_map_init (void)
   free_map = bitmap_create (block_size (fs_device));
   if (free_map == NULL)
     PANIC ("bitmap creation failed--file system device is too large");
-  bitmap_mark (free_map, FREE_MAP_SECTOR);
+
+  /*places the free map in the first sectors[0]*/
+  bitmap_mark (free_map, FREE_MAP_SECTOR); 
+  /*places the root directory in the second sector sectors[1]*/
   bitmap_mark (free_map, ROOT_DIR_SECTOR);
 }
 

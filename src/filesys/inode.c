@@ -6,6 +6,7 @@
 #include "filesys/filesys.h"
 #include "filesys/free-map.h"
 #include "threads/malloc.h"
+#include "devices/block.h"
 
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
@@ -18,6 +19,7 @@ struct inode_disk
     off_t length;                       /* File size in bytes. */
     unsigned magic;                     /* Magic number. */
     uint32_t unused[125];               /* Not used. */
+    //block_sector_t data_array[ block_size(fs_device) / BLOCK_SECTOR_SIZE]
   };
 
 /* Returns the number of sectors to allocate for an inode SIZE

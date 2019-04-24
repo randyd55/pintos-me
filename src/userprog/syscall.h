@@ -9,6 +9,9 @@
 //Chineye Driving
 struct lock filesys_lock;
 
+/*lock for extending the file*/
+struct lock filesys_extending_lock;
+
 int wait(pid_t pid);
 
 void syscall_init (void);

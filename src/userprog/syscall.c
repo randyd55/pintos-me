@@ -13,7 +13,8 @@ void
 syscall_init (void)
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
-  lock_init(&filesys_lock);
+  lock_init(&filesys_lock); //might need to b00t this
+  lock_init(&filesys_extending_lock);
 }
 
 /**
@@ -107,8 +108,46 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_WAIT :
       f->eax = wait(*(int*)(f->esp +4));
       break;
-      
+
+    case SYS_CHDIR :
+      if(check_pointer(f->esp + 4))
+        f->eax = chdir((char *) *(int*) f->esp + 4);
+      else
+        f->eax = false; //not sure whether to exit or ret. false
+      break;
+
+    case SYS_MKDIR :
+      if(check_pointer(f->esp + 4))
+        f->eax = mkdir((char *) *(int*) f->esp + 4);
+      else
+        f->eax = false; //not sure whether to exit or ret. false
+      break;
+
+    case SYS_READDIR :
+      if(check_pointer(f->esp + 4) && check_pointer(f->esp + 8))
+        f->eax = readdir((*(int*)(f->esp + 4)),
+        (char *) *(int*) f->esp + 8);
+      else
+        f->eax = false; //not sure whether to exit or ret. false
+      break;
+
+    case SYS_ISDIR :
+      if (check_pointer(f->esp + 4))
+        f->eax = isdir(*(int*)(f->esp +4));
+      else 
+        f->eax = false;
+      break;
+
+    case SYS_INUMBER :
+      if (check_pointer(f->esp + 4))
+        f->eax = inumber(*(int*)(f->esp +4));
+      else 
+        //what if there is no associated file?what do we return?
+      break;
   }
+      
+
+  
   //Randy Done
 }
 
@@ -119,11 +158,18 @@ syscall_handler (struct intr_frame *f UNUSED)
 
 bool 
 chdir (const char *dir){
+
+  //bool created = filesys_create();
+
   return true;
 }
 
 bool 
 mkdir (const char *dir){
+
+  //maybe set the isdirectory member of the file struct here
+  
+
   return true;
 }
 
@@ -134,7 +180,12 @@ readdir (int fd, char *name){
 
 bool 
 isdir (int fd){
-  return true;
+
+  //what if they pass in fd == 0 || fd == 1?
+  //return if the directory is set or not
+  //bool isdir = (thread_current()->files[fd]->isdirectory) != NULL;
+
+  return isdir;
 }
 
 int 

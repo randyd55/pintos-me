@@ -45,7 +45,8 @@ filesys_done (void)
 bool
 filesys_create (const char *name, off_t initial_size) 
 {
-  block_sector_t inode_sector = 0;
+  //add a directory parameter?
+  block_sector_t inode_sector = 0; //need to change to the proper dir
   struct dir *dir = dir_open_root ();
   bool success = (dir != NULL
                   && free_map_allocate (1, &inode_sector)
