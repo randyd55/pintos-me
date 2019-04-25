@@ -152,14 +152,19 @@ syscall_handler (struct intr_frame *f UNUSED)
 }
 
 //Chineye Driving
-/**
- * Checks that pointer is within valid access space
- */
 
 bool 
 chdir (const char *dir){
 
-  //bool created = filesys_create();
+  //bool exists = dir_open(dir->inode)
+  /*if (!exists){
+	  return false
+	} else{
+		
+	  thread_current()->working_dir = dir;
+	}
+  
+  */
 
   return true;
 }
@@ -194,9 +199,9 @@ inumber (int fd){
 }
 
 
-
-
-
+/**
+ * Checks that pointer is within valid access space
+ */
 bool
 check_pointer (uint32_t * stack_ptr)
 {

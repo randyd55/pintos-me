@@ -39,6 +39,7 @@ struct inode
     bool removed;                       /* True if deleted, false otherwise. */
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
     struct inode_disk data;             /* Inode content. */
+	bool is_directory;
   };
 
 /* Returns the block device sector that contains byte offset POS
@@ -84,11 +85,13 @@ inode_create (block_sector_t sector, off_t length)
   ASSERT (sizeof *disk_inode == BLOCK_SECTOR_SIZE);
 
   disk_inode = calloc (1, sizeof *disk_inode);
+  
   if (disk_inode != NULL)
     {
       size_t sectors = bytes_to_sectors (length);
       disk_inode->length = length;
       disk_inode->magic = INODE_MAGIC;
+	  //set the directory boolean here...question is how
       if (free_map_allocate (sectors, &disk_inode->start))
         {
           block_write (fs_device, sector, disk_inode);
@@ -104,6 +107,7 @@ inode_create (block_sector_t sector, off_t length)
         }
       free (disk_inode);
     }
+	
   return success;
 }
 

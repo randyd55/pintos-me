@@ -115,6 +115,8 @@ struct thread
     struct list children; // list of children the thread has
 
     struct dir *root_dir; //the root directory
+	struct dir *working_dir;
+	
 
 
 
