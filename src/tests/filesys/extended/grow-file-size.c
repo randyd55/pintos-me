@@ -19,6 +19,7 @@ static void
 check_file_size (int fd, long ofs) 
 {
   long size = filesize (fd);
+  //printf("%d\n", size);
   if (size != ofs)
     fail ("filesize not updated properly: should be %ld, actually %ld",
           ofs, size);

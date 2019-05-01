@@ -113,7 +113,7 @@ static struct list open_inodes;
 void
 inode_init (void)
 {
-  printf("%s\n", "inside inode_init");
+  //printf("%s\n", "inside inode_init");
   list_init (&open_inodes);
 }
 
@@ -125,7 +125,7 @@ inode_init (void)
 bool
 inode_create (block_sector_t sector, off_t length)
 {
-  printf("%s\n", "inside create\n");
+  //printf("%s\n", "inside create\n");
   struct inode_disk *disk_inode = NULL;
   bool success = false;
   int currLength = 0;
@@ -420,7 +420,7 @@ off_t
 inode_write_at (struct inode *inode, const void *buffer_, off_t size,
                 off_t offset)
 {
-  printf("%s\n", "asldsafhdsafdlajhdasljfhdsalkjfdhaskdjfhasdjhfklfhdsajdfhsakdfhkashdfkasjhdfkashfdkljh");
+  //printf("%s\n", "asldsafhdsafdlajhdasljfhdsalkjfdhaskdjfhasdjhfklfhdsajdfhsakdfhkashdfkasjhdfkashfdkljh");
   int i;
   const uint8_t *buffer = buffer_;
   off_t bytes_written = 0;
@@ -431,28 +431,37 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   //int sectors_to_allocate = (offset + size - inode->length)/BLOCK_SECTOR_SIZE;
   int end = (offset + size);
   if(end % BLOCK_SECTOR_SIZE != 0){
+    //printf("%s\n", "should get here");
   	end = end/BLOCK_SECTOR_SIZE + 1;
+    //printf("end: %d\n", end);
   }
   else{
   	end = end/BLOCK_SECTOR_SIZE;
   }
+  //printf("inode length before allocating sectors: %d\n", inode_length (inode));
   for(i = inode->length/BLOCK_SECTOR_SIZE; i < end; i++){
+    //printf("%s\n", "allocating sector");
   	allocate_sector(i, inode);
   }
+  //printf("inode length after allocating sectors: %d\n", inode_length (inode));
   while (size > 0)
     {
       /* Sector to write, starting byte offset within sector. */
+      //printf("writing\n\n");
       block_sector_t sector_idx = byte_to_sector (inode, offset);
       int sector_ofs = offset % BLOCK_SECTOR_SIZE;
 
       /* Bytes left in inode, bytes left in sector, lesser of the two. */
       off_t inode_left = inode_length (inode) - offset;
+      //printf("inode_left: %d\n", inode_left);
+      //printf("inode length: %d\n", inode_length (inode));
       int sector_left = BLOCK_SECTOR_SIZE - sector_ofs;
       int min_left = inode_left < sector_left ? inode_left : sector_left;
 
       /* Number of bytes to actually write into this sector. */
       int chunk_size = size < min_left ? size : min_left;
       if (chunk_size <= 0){
+        printf("%s\n", "breaking in chunk_size");
         break;
       }
 
@@ -489,6 +498,8 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       bytes_written += chunk_size;
 	}
   free (bounce);
+  //inode -> data.length += size;
+  //inode -> length += size;
   return bytes_written;
 }
 
@@ -563,12 +574,14 @@ inode_create_failure(struct inode_disk *d_inode, int length){
 }
 
 void allocate_sector(int sector_idx, struct inode *inode){
+  //printf("%s\n", "inside allocate sector");
 	int location;
 	struct inode_disk *disk_inode = malloc(sizeof(struct inode_disk));
 	block_read(fs_device, inode->sector, disk_inode);
 	if(!free_map_allocate(1, &location)){
 		return;
 	}
+  //printf("SECTOR BEING WRITTEN TO:%d\n", sector_idx);
 	static char zeros[BLOCK_SECTOR_SIZE];
 	if(sector_idx < DIRECT_BLOCKS){
 	  	disk_inode->direct_blocks[sector_idx] = location;
@@ -595,8 +608,9 @@ void allocate_sector(int sector_idx, struct inode *inode){
 	  	return;
 	  }
 
-	inode->length += BLOCK_SECTOR_SIZE;
-	disk_inode->length += BLOCK_SECTOR_SIZE;
+
+  inode->data = *disk_inode;
 	block_write(fs_device, inode->sector, disk_inode);
+  //printf("%s\n", "leaving allocate_sector");
 	return;
 }
