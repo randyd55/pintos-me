@@ -53,7 +53,7 @@ struct inode
     struct list_elem elem;              /* Element in inode list. */
     block_sector_t sector;              /* Sector number of disk location. */
    
-    off_t length;						/*length of file*/
+    //off_t length;						/*length of file*/
     int open_cnt;                       /* Number of openers. */
     bool removed;                       /* True if deleted, false otherwise. */
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
@@ -70,29 +70,29 @@ static block_sector_t
 byte_to_sector (const struct inode *inode, off_t pos)
 {
   ASSERT (inode != NULL);
-  struct inode_disk *disk_inode = malloc(sizeof(struct inode_disk));
-  block_read(fs_device, inode->sector, disk_inode);
-
-  if (pos < inode->data.length){
+  block_sector_t val;
+  val = -1;
+  if (pos <= inode->data.length){
 	  if(pos < DIRECT_BLOCKS * BLOCK_SECTOR_SIZE){
-	  	return disk_inode->direct_blocks[pos / BLOCK_SECTOR_SIZE];
+      val = inode->data.direct_blocks[pos / BLOCK_SECTOR_SIZE];
+      //printf("default ");
 	  }
 	  else if(pos <= (DIRECT_BLOCKS + SINGLE_BLOCKS) * BLOCK_SECTOR_SIZE){
 	  	struct singleIB *single = malloc(sizeof(struct singleIB));
-	  	block_read(fs_device, disk_inode->singleIB, single);
-	  	return single->data_blocks[pos/BLOCK_SECTOR_SIZE - DIRECT_BLOCKS];
+	  	block_read(fs_device, inode->data.singleIB, single);
+	  	val = single->data_blocks[pos/BLOCK_SECTOR_SIZE - DIRECT_BLOCKS];
+      free(single);
+      printf("SINGLE ");
 	  }
 	  else if(pos <= MAX_FILE_SIZE * BLOCK_SECTOR_SIZE){
 	  	struct doubleIB *doubly = malloc(sizeof(struct doubleIB));
-    	block_read(fs_device, disk_inode->doubleIB, doubly);
+    	block_read(fs_device, inode->data.doubleIB, doubly);
     	struct singleIB *single = malloc(sizeof(struct singleIB));
     	int singleNum = ((pos / BLOCK_SECTOR_SIZE) - (DIRECT_BLOCKS + SINGLE_BLOCKS)) / DOUBLE_BLOCKS;
     	block_read(fs_device, doubly->single_blocks[singleNum], single);
-    	return single->data_blocks[((pos / BLOCK_SECTOR_SIZE) - (DIRECT_BLOCKS + SINGLE_BLOCKS)) % DOUBLE_BLOCKS];
-	  }
-	  else{
-
-	  	return -1;
+    	val = single->data_blocks[((pos / BLOCK_SECTOR_SIZE) - (DIRECT_BLOCKS + SINGLE_BLOCKS)) % DOUBLE_BLOCKS];
+      free(doubly);
+      free(single);
 	  }
 
   }
@@ -102,7 +102,8 @@ byte_to_sector (const struct inode *inode, off_t pos)
   else
     return -1;
    */
-  return -1;
+  //printf("inode: %x, pos: %10d, byte_to_sector return %d\n",inode, pos,val);
+  return val;
 }
 
 /* List of open inodes, so that opening a single inode twice
@@ -125,7 +126,7 @@ inode_init (void)
 bool
 inode_create (block_sector_t sector, off_t length)
 {
-  printf("%s\n", "inside create\n");
+  //printf("%s\n", "inside create\n");
 
   struct inode_disk *disk_inode = NULL;
   bool success = false;
@@ -155,6 +156,7 @@ inode_create (block_sector_t sector, off_t length)
   		if(free_map_allocate(1, &location)){
   			disk_inode->direct_blocks[i] = location;
   			currLength += BLOCK_SECTOR_SIZE;
+        //printf("location: %d\n",location);
   			//block_write (fs_device, location, disk_inode);
   		}
   		else{
@@ -174,8 +176,10 @@ inode_create (block_sector_t sector, off_t length)
   for(i = 0; i < currLength/BLOCK_SECTOR_SIZE; i++){
   	block_write(fs_device, disk_inode->direct_blocks[i], zeros);
   }
-  if(success)
+  if(success){
+    //printf("success direct: %d\n\n", success);
   	return success;
+  }
   //build singleIB struct
   struct singleIB *singly = malloc(sizeof(struct singleIB));  
   for(i = 0; i < SINGLE_BLOCKS; i++){
@@ -193,52 +197,55 @@ inode_create (block_sector_t sector, off_t length)
   			//free stuff probs
   			inode_create_failure(disk_inode, currLength);
   			return false;
-  		}
-        
+  		}   
   }
   //write singleIB to disk
   block_write(fs_device, disk_inode->singleIB, singly);
+  free(singly);
   //write the blocks to which single IB points to disk
   /*for(i = DIRECT_BLOCKS; i < currLength/BLOCK_SECTOR_SIZE; i++){
   	printf("singleIB data_block sector: %d i: %d\n\n", singly->data_blocks[i], i);
   	
   }*/
 
-  if(success)
+  if(success){
+    printf("success single: %d\n\n", success);
+
   	return success;
+  }
 
   struct doubleIB *doubly = malloc(sizeof(struct doubleIB));
   for(i = 0; i < DOUBLE_BLOCKS; i++){
-  	 size_t j;
-  	 struct singleIB *doubly_singly = malloc(sizeof(struct singleIB));  
-  	 if(!free_map_allocate(1, &location) && !success){
+  	size_t j;
+  	struct singleIB *doubly_singly = malloc(sizeof(struct singleIB));  
+  	if(!free_map_allocate(1, &location) && !success){
   	 	inode_create_failure(disk_inode, currLength);
   	 	return false;
-  	 }
-  	 else if(success)
-  	 	break;
-  	 doubly->single_blocks[i] = location;
-  	 for(j = 0; j < SINGLE_BLOCKS; j++){
-        
+  	}
+  	else if(success)
+  	  break;
+  	doubly->single_blocks[i] = location;
+  	for(j = 0; j < SINGLE_BLOCKS; j++){  
   		if(currLength >= length){
-  			success = true;
+  		  success = true;
   		}
   		else if(free_map_allocate(1, &location)){
-           doubly_singly->data_blocks[i] = location;
-           currLength += BLOCK_SECTOR_SIZE;
-           block_write(fs_device, location, zeros);
+        doubly_singly->data_blocks[i] = location;
+        currLength += BLOCK_SECTOR_SIZE;
+        block_write(fs_device, location, zeros);
   		}
   		else{
   			inode_create_failure(disk_inode, currLength);
   			return false;
-  		}
-        
-  	 }
-  	 block_write(fs_device, doubly->single_blocks[i], doubly_singly);
-
+  		}   
+  	}
+  	block_write(fs_device, doubly->single_blocks[i], doubly_singly);
+    free(doubly_singly);
   }
   block_write(fs_device, disk_inode->doubleIB, doubly);
-  size_t k;
+  free(doubly);
+  free(disk_inode);
+  printf("success double: %d\n\n", success);
   return success;
   /*if (disk_inode != NULL)
     {
@@ -273,7 +280,7 @@ inode_open (block_sector_t sector)
 {
   struct list_elem *e;
   struct inode *inode;
-  printf("inode_open \n\n");
+  //printf("inode_open \n\n");
   /* Check whether this inode is already open. */
   for (e = list_begin (&open_inodes); e != list_end (&open_inodes);
        e = list_next (e))
@@ -302,8 +309,6 @@ inode_open (block_sector_t sector)
   inode->deny_write_cnt = 0;
   inode->removed = false;
   block_read (fs_device, inode->sector, &inode->data);
-  inode->length = inode->data.length;
-  printf("inode length: %d\n\n", inode->length);
   return inode;
 }
 
@@ -427,7 +432,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 {
   //printf("gettin here\n\n");
   //printf("%s\n", "asldsafhdsafdlajhdasljfhdsalkjfdhaskdjfhasdjhfklfhdsajdfhsakdfhkashdfkasjhdfkashfdkljh");
-  printf("writing 37 bytes\n\n");
+  //printf("writing 37 bytes\n\n");
   int i;
   const uint8_t *buffer = buffer_;
   off_t bytes_written = 0;
@@ -447,14 +452,18 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   }
   //printf("inode length before allocating sectors: %d\n", inode_length (inode));
   //Fix dis
-  for(i = inode->length/BLOCK_SECTOR_SIZE; i < end; i++){
+  for(i = inode->data.length/BLOCK_SECTOR_SIZE; i < end; i++){
     //printf("%s\n", "allocating sector");
     int size_temp = size;
     int bytes_to_write = size_temp > BLOCK_SECTOR_SIZE ? BLOCK_SECTOR_SIZE : size_temp; 
-    printf("bytes_to_write: %d\n\n", bytes_to_write);
+    //printf("bytes_to_write: %d\n\n", bytes_to_write);
   	allocate_sector(i, inode, bytes_to_write);
   	size_temp -= BLOCK_SECTOR_SIZE;
   }
+
+  inode->data.length = offset + size > inode->data.length ? offset + size : inode->data.length;
+  block_write(fs_device, inode->sector, &inode->data);
+
   //printf("inode length after allocating sectors: %d\n", inode_length (inode));
   while (size > 0)
     {
@@ -481,6 +490,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
         {
           /* Write full sector directly to disk. */
           block_write (fs_device, sector_idx, buffer + bytes_written);
+          //sprintf("Sector written: %d\n\n", sector_idx);
         }
       else
         {
@@ -505,7 +515,9 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
         }
 
       /* Advance. */
+
       size -= chunk_size;
+      printf("chunk_size: %d, size: %d",chunk_size, size);
       offset += chunk_size;
       bytes_written += chunk_size;
 	}
@@ -538,7 +550,7 @@ inode_allow_write (struct inode *inode)
 off_t
 inode_length (const struct inode *inode)
 {
-  return inode->length;
+  return inode->data.length;
 }
 
 void 
@@ -586,49 +598,52 @@ inode_create_failure(struct inode_disk *d_inode, int length){
 }
 
 void allocate_sector(int sector_idx, struct inode *inode, int bytes){
-    printf("%s\n\n", "inside allocate sector");
+    //printf("%s\n\n", "inside allocate sector");
 	int location;
-	struct inode_disk *disk_inode = malloc(sizeof(struct inode_disk));
-	block_read(fs_device, inode->sector, disk_inode);
+	
 	if(!free_map_allocate(1, &location)){
 		return;
 	}
-  //printf("SECTOR BEING WRITTEN TO:%d\n", sector_idx);
+  printf("SECTOR BEING WRITTEN TO: %d\n", location);
 	static char zeros[BLOCK_SECTOR_SIZE];
 	if(sector_idx < DIRECT_BLOCKS){
-	  	disk_inode->direct_blocks[sector_idx] = location;
+	  	inode->data.direct_blocks[sector_idx] = location;
 	  	block_write(fs_device, location, zeros);
+      //printf("block write\n");
 	  }
 	  else if(sector_idx <= (DIRECT_BLOCKS + SINGLE_BLOCKS)){
 	  	 struct singleIB *singly = malloc(sizeof(struct singleIB));
-	  	 block_read(fs_device, disk_inode->singleIB, singly);
+	  	 block_read(fs_device, inode->data.singleIB, singly);
 	  	 singly->data_blocks[sector_idx - DIRECT_BLOCKS] = location;
 	  	 block_write(fs_device, location, zeros);
-	  	 block_write(fs_device, disk_inode->singleIB, singly);
+	  	 block_write(fs_device, inode->data.singleIB, singly);
+       free(singly);
+       printf("single write\n");
 	  }
 	  else if(sector_idx <= MAX_FILE_SIZE){
 	  	 struct doubleIB *doubly = malloc(sizeof(struct doubleIB));
-	  	 block_read(fs_device, disk_inode->doubleIB, doubly);
+	  	 block_read(fs_device, inode->data.doubleIB, doubly);
 	  	 struct singleIB *singly = malloc(sizeof(struct singleIB));
 	  	 block_read(fs_device, doubly->single_blocks[(sector_idx - (DIRECT_BLOCKS + SINGLE_BLOCKS))/DOUBLE_BLOCKS], zeros);
 	  	 singly->data_blocks[(sector_idx - (DIRECT_BLOCKS + SINGLE_BLOCKS)) % DOUBLE_BLOCKS] = location;
 	  	 block_write(fs_device, location, zeros);
 	  	 block_write(fs_device, doubly->single_blocks[(sector_idx - (DIRECT_BLOCKS + SINGLE_BLOCKS))/DOUBLE_BLOCKS], singly);
-	  	 block_write(fs_device, disk_inode->doubleIB, doubly);
+	  	 block_write(fs_device, inode->data.doubleIB, doubly);
+       free(singly);
+       free(doubly);
+       printf("double write");
 	  }
 	  else{
 	  	return;
 	  }
 
 
-    printf("bytes: %d\n\n", bytes);
-    printf("true length %d\n\n", disk_inode->length + bytes);
-    inode->length += bytes;
-    disk_inode->length += BLOCK_SECTOR_SIZE;
+    //printf("bytes: %d\n\n", bytes);
+    //printf("true length %d\n\n", inode->data.length + bytes);
+    //disk_inode->length += BLOCK_SECTOR_SIZE;
 
-    //inode->length += bytes;
-    inode->data = *disk_inode;
-	block_write(fs_device, inode->sector, disk_inode);
+    //inode->data.length += bytes;
+	  //block_write(fs_device, inode->sector, &inode->data);
   //printf("%s\n", "leaving allocate_sector");
 	return;
 }
