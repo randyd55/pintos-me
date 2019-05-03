@@ -91,7 +91,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
 
     case SYS_TELL:
-      f->eax = tell(*(unsigned*)f->esp+4);
+      f->eax = tell(*(unsigned*)(f->esp + 4));
       break;
 
     case SYS_HALT :
@@ -277,7 +277,7 @@ open (const char *file)
     //Store file in thread for later use
     if(open_spot != -1)
     {
-      f_open = filesys_open(file); 
+      f_open = filesys_open(file);
       thread_current()->files[open_spot] = f_open;
     }
     lock_release(&filesys_lock);
