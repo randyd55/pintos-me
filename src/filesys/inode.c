@@ -11,7 +11,7 @@
 
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
-#define DIRECT_BLOCKS 124
+#define DIRECT_BLOCKS 123
 #define SINGLE_BLOCKS 128
 #define DOUBLE_BLOCKS 128
 #define MAX_FILE_SIZE 16384
@@ -21,6 +21,7 @@ struct inode_disk
   {
     //block_sector_t start;               				/* First data sector. */
     off_t length;                         				/* File size in bytes. */
+    bool is_directory;
     unsigned magic;                       				/* Magic number. */
     block_sector_t direct_blocks[DIRECT_BLOCKS];	  	/*first 124 direct blocks*/
     block_sector_t singleIB;              				/*Location of single indirection block */
@@ -58,7 +59,6 @@ struct inode
     int open_cnt;                       /* Number of openers. */
     bool removed;                       /* True if deleted, false otherwise. */
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
-    bool is_directory;
     struct inode_disk data;             /* Inode content. */
 	
   };
@@ -138,12 +138,11 @@ inode_create (block_sector_t sector, off_t length)
   /* If this assertion fails, the inode structure is not exactly
      one sector in size, and you should fix that. */
   ASSERT (sizeof *disk_inode == BLOCK_SECTOR_SIZE);
-
   disk_inode = calloc (1, sizeof *disk_inode);
 
   //allocate direct blocks
   int inode_location = 0;
-
+  disk_inode->is_directory=false;
   disk_inode->length = length;
   //printf("length: %d\n\n", disk_inode->length);
   disk_inode->magic = INODE_MAGIC;
@@ -247,6 +246,7 @@ inode_create (block_sector_t sector, off_t length)
   free(doubly);
   free(disk_inode);
   printf("success double: %d\n\n", success);
+
   return success;
   /*if (disk_inode != NULL)
     {
@@ -650,3 +650,10 @@ void allocate_sector(int sector_idx, struct inode *inode, int bytes){
   //printf("%s\n", "leaving allocate_sector");
 	return;
 }
+void inode_set_dir(struct inode* inode){
+  inode->data.is_directory=true;
+}
+bool inode_is_dir(struct inode* inode){
+  return inode->data.is_directory;
+}
+

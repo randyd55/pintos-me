@@ -4,6 +4,7 @@
 #include <list.h>
 #include "filesys/filesys.h"
 #include "filesys/inode.h"
+
 #include "threads/malloc.h"
 
 /* A directory. */
@@ -21,12 +22,16 @@ struct dir_entry
     bool in_use;                        /* In use or free? */
   };
 
+static struct dir root_dir;
 /* Creates a directory with space for ENTRY_CNT entries in the
    given SECTOR.  Returns true if successful, false on failure. */
 bool
 dir_create (block_sector_t sector, size_t entry_cnt)
 {
-  return inode_create (sector, entry_cnt * sizeof (struct dir_entry));
+  bool success = inode_create (sector, entry_cnt * sizeof (struct dir_entry));
+  if(success)
+    inode_set_dir(inode_open(sector));
+  return success;
 }
 
 /* Opens and returns the directory for the given INODE, of which
@@ -235,3 +240,5 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
     }
   return false;
 }
+
+

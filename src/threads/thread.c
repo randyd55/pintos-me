@@ -11,6 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "filesys/directory.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -200,8 +201,8 @@ thread_create (const char *name, int priority,
   sf = alloc_frame (t, sizeof *sf);
   sf->eip = switch_entry;
   sf->ebp = 0;
-  t->parent = thread_current();
 
+  t->parent = thread_current();
   /* Add to run queue. */
 
   thread_unblock (t);
@@ -496,7 +497,7 @@ init_thread (struct thread *t, const char *name, int priority)
   sema_init(&(t->exec_sema), 0);
   list_init(&(t->children));
 
-
+  //t->working_dir = dir_open_root();
 
   old_level = intr_disable();
   list_push_back (&all_list, &t->allelem);

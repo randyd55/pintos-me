@@ -6,6 +6,10 @@
 #include "threads/vaddr.h"
 #include "devices/input.h"
 #include "userprog/pagedir.h"
+#include "filesys/inode.h"
+#include "filesys/directory.h"
+#include "threads/thread.h"
+#include "filesys/file.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -111,14 +115,14 @@ syscall_handler (struct intr_frame *f UNUSED)
 
     case SYS_CHDIR :
       if(check_pointer(f->esp + 4))
-        f->eax = chdir((char *) *(int*) f->esp + 4);
+        f->eax = chdir((char *)*(int*)(f->esp + 4));
       else
         f->eax = false; //not sure whether to exit or ret. false
       break;
 
     case SYS_MKDIR :
       if(check_pointer(f->esp + 4))
-        f->eax = mkdir((char *) *(int*) f->esp + 4);
+        f->eax = mkdir((char*)*(int*)(f->esp + 4));
       else
         f->eax = false; //not sure whether to exit or ret. false
       break;
@@ -155,27 +159,42 @@ syscall_handler (struct intr_frame *f UNUSED)
 
 bool 
 chdir (const char *dir){
-
-  //bool exists = dir_open(dir->inode)
-  /*if (!exists){
+  struct inode* inode;
+  struct dir* new_dir;
+  dir_lookup(thread_current()->working_dir,dir,&inode);
+  if(new_dir==NULL)
+    return false;
+  else{
+    new_dir=dir_open(inode);
+    if(new_dir==NULL)
+      return false;
+    thread_current()->working_dir=new_dir;
+    return true;
+  }
+  /*bool exists = dir_open(dir->inode)
+  if (!exists){
 	  return false
 	} else{
 		
 	  thread_current()->working_dir = dir;
-	}
+	}*/
   
-  */
+  
 
-  return true;
 }
 
 bool 
 mkdir (const char *dir){
-
+  bool success;
+  int location;
+  //printf("Here?\n");
+  //char *name;
+  //strlcpy(name,dir,strlen(dir));
+  if(free_map_allocate(1,&location))
+    success=dir_create(location,0);
+  dir_add(thread_current()->working_dir,dir,location);
   //maybe set the isdirectory member of the file struct here
-  
-
-  return true;
+  return success;
 }
 
 bool 
@@ -185,12 +204,10 @@ readdir (int fd, char *name){
 
 bool 
 isdir (int fd){
-
+  return inode_is_dir(file_get_inode(thread_current()->files[fd]));
   //what if they pass in fd == 0 || fd == 1?
   //return if the directory is set or not
   //bool isdir = (thread_current()->files[fd]->isdirectory) != NULL;
-
-  return isdir;
 }
 
 int 

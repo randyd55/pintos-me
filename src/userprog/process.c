@@ -65,6 +65,9 @@ process_execute (const char *file_name)
 
 //Randy Driving
 
+  if(t->working_dir == NULL)
+    t->working_dir=dir_open_root();
+
 /* Make a copy of file name, to tokenize the first token of the line*/
   fn_temp = palloc_get_page(PAL_ZERO);
   if(fn_temp == NULL){
@@ -121,6 +124,7 @@ start_process (void *file_name_)
   /*determine if child thread loaded properly*/
   if (success){
     parent_thread->load_status = true;
+    thread_current()->working_dir = parent_thread->working_dir;
     sema_up(&(parent_thread->exec_sema));
 
   } else {
