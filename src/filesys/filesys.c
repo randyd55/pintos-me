@@ -53,7 +53,6 @@ filesys_create (const char *name, off_t initial_size)
   struct inode* inode=fetch_from_path(name);
   
   if(inode!=NULL && inode_is_dir(inode)){
-    //printf("Pure relative directory\n\n");
     dir=dir_open(inode);
 
   }
@@ -128,10 +127,11 @@ fetch_from_path(const char* path){
   //printf("filename length: %d\n",strlen(fetch_filename(path))+1);
   struct dir* dir;
   struct inode* inode=NULL;
+  struct inode* expected=NULL;
   strlcpy(expected_file, fetch_filename(path),strlen(fetch_filename(path))+1);
 
   strlcpy(name,path,strlen(path)-strlen(expected_file)+1);
-  //printf("Made it here: %s, %s, %s'\n", path, name, expected_file);
+  printf("Made it here: %s, %s, %s'\n", path, name, expected_file);
   if(thread_current()->working_dir==NULL){
     thread_current()->working_dir=dir_open_root();
   }
@@ -152,25 +152,29 @@ fetch_from_path(const char* path){
 
     //File or directory not found, return highest existing directory
     if(inode==NULL){
+      //printf("Dir is null\n");
       dir_close(dir);
       return NULL;
     }
     //Set dir to next directory existin in tree
     if(inode_is_dir(inode)){
+      //printf("Open next directory\n");
       dir=dir_open(inode);
     }
     //Found but not a directory, return regular file
     else{
+      //printf("Not directory?\n");
       dir_close(dir);
       return NULL; //Return immediately or break?
     }
   }
 
-  dir_lookup(dir,expected_file,&inode);
-  dir_close(dir);
+  dir_lookup(dir,expected_file,&expected);
   free(expected_file);
   free(name);
-  return inode;
+  if(expected==NULL)
+    return inode;
+  return expected;
 }
 
 char* fetch_filename(const char* path){
