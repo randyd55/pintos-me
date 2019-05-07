@@ -52,11 +52,12 @@ filesys_create (const char *name, off_t initial_size)
   struct dir *dir = dir_open_root ();
   struct inode* inode=fetch_from_path(name);
   
-  if(inode!=NULL){
+  if(inode!=NULL && inode_is_dir(inode)){
+    //printf("Pure relative directory\n\n");
     dir=dir_open(inode);
 
   }
-  //printf("filename: %s\n", fetch_filename(name));
+  //printf("filename: '%s'\n", fetch_filename(name));
 
 
   bool success = (dir != NULL
@@ -119,31 +120,27 @@ is_absolute_path(const char* file){
   return false;
 }
 
+
 struct inode *
 fetch_from_path(const char* path){
-  char* name=malloc(sizeof(char*));
-  char* expected_file = malloc(sizeof(char*));
-  expected_file = fetch_filename(path);
+  char* name=malloc(strlen(path)*sizeof(char)+1);
+  char* expected_file = malloc(strlen(fetch_filename(path))+1);
+  //printf("filename length: %d\n",strlen(fetch_filename(path))+1);
   struct dir* dir;
   struct inode* inode=NULL;
+  strlcpy(expected_file, fetch_filename(path),strlen(fetch_filename(path))+1);
 
   strlcpy(name,path,strlen(path)-strlen(expected_file)+1);
-  printf("Made it here: %s, %s, %s'\n", path, name, expected_file);
+  //printf("Made it here: %s, %s, %s'\n", path, name, expected_file);
   if(thread_current()->working_dir==NULL){
-    //printf("was null?\n");
     thread_current()->working_dir=dir_open_root();
   }
   if(is_absolute_path(name)){
-   // printf("Absolute\n");
     dir = dir_open_root();
   }
   else{
-    printf("dir: %x\n\n", thread_current()->working_dir);
-    //dir = dir_reopen(thread_current()->working_dir);
-    dir=dir_open_root();
-    //printf("root?: %d\n", dir==dir_open_root());
+    dir = dir_reopen(thread_current()->working_dir);
   }
-
   //char s[] = " /String/to/tokenize. ";
   char *token, *save_ptr;
 
@@ -154,31 +151,38 @@ fetch_from_path(const char* path){
     dir_lookup(dir, token, &inode);
 
     //File or directory not found, return highest existing directory
-    if(inode==NULL)
+    if(inode==NULL){
+      dir_close(dir);
       return NULL;
+    }
     //Set dir to next directory existin in tree
     if(inode_is_dir(inode)){
       dir=dir_open(inode);
     }
     //Found but not a directory, return regular file
     else{
+      dir_close(dir);
       return NULL; //Return immediately or break?
     }
   }
+
   dir_lookup(dir,expected_file,&inode);
   dir_close(dir);
+  free(expected_file);
+  free(name);
   return inode;
 }
 
 char* fetch_filename(const char* path){
-  char* name=malloc(sizeof(char*));
+  char* name=malloc(strlen(path)+1);
   char *token, *save_ptr, *result;
-  result="";
+  result=malloc(strlen(path)+1);
+  *result="";
   strlcpy(name,path,strlen(path)+1);
-
   for (token = strtok_r (name, "/", &save_ptr); token != NULL;
         token = strtok_r (NULL, "/", &save_ptr)){
-      result=token;
+      strlcpy(result,token,strlen(token)+1);
     } 
+  free(name);
   return result;
 }
