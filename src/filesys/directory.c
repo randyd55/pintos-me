@@ -29,8 +29,10 @@ bool
 dir_create (block_sector_t sector, size_t entry_cnt)
 {
   bool success = inode_create (sector, entry_cnt * sizeof (struct dir_entry));
-  if(success)
+  if(success){
     inode_set_dir(inode_open(sector));
+    //inode_deny_write(inode_open(sector));
+  }
   return success;
 }
 
@@ -134,7 +136,7 @@ dir_lookup (const struct dir *dir, const char *name,
     *inode = inode_open (e.inode_sector);
   else
     *inode = NULL;
-
+  //printf("entry name name: %s\n\n", e.name);
   return *inode != NULL;
 }
 

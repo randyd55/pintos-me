@@ -11,6 +11,7 @@
 #include "threads/thread.h"
 #include "filesys/file.h"
 
+
 static void syscall_handler (struct intr_frame *);
 
 void
@@ -171,7 +172,7 @@ chdir (const char *dir){
     thread_current()->working_dir=new_dir;
     return true;
   }
-  /*bool exists = dir_open(dir->inode)
+  /*bool exists = dir_opedir-mk-tree) create "/0/0/2/0": FAILEDn(dir->inode)
   if (!exists){
 	  return false
 	} else{
@@ -185,15 +186,27 @@ chdir (const char *dir){
 
 bool 
 mkdir (const char *dir){
+  //printf("making directory\n\n");
+  char* name=malloc(strlen(dir)*sizeof(char));
   bool success;
-  int location;
-  //printf("Here?\n");
-  //char *name;
+  int location; 
+   //char *name;
   //strlcpy(name,dir,strlen(dir));
   if(free_map_allocate(1,&location))
     success=dir_create(location,0);
-  dir_add(thread_current()->working_dir,dir,location);
+  //printf("dir in mkdir: %s\n", dir);
+  
+  //printf("fetchr: %s\n", fetch_from_path(dir));
+  struct dir* parent_dir = dir_open(fetch_from_path(dir));
+
+  name = fetch_filename(dir);
+  
+  //printf("adding name %s to directory\n\n", name);
+  dir_add(parent_dir,name,location);
+  
   //maybe set the isdirectory member of the file struct here
+  //printf("directory %s successfully made?: %d\n", dir, success);
+
   return success;
 }
 

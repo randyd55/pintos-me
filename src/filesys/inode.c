@@ -440,7 +440,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   off_t bytes_written = 0;
   uint8_t *bounce = NULL;
 
-  if (inode->deny_write_cnt)
+  if (inode->deny_write_cnt || (inode->data.is_directory&& inode->open_cnt >9))
     return 0;
   int sectors_to_allocate;
   int current_sectors = 0;
