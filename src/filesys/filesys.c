@@ -59,12 +59,13 @@ filesys_create (const char *name, off_t initial_size)
     //printf("Directoruy\n\n");
     dir=dir_open(inode);
   } else{
+    //printf("here\n\n");
     return false;
   }
   //printf("filename: '%s'\n", fetch_filename(name));
   bool allocate = free_map_allocate(1, &inode_sector);
   bool inode_c = inode_create(inode_sector, initial_size);
- // printf("inode_create %d\n\n", inode_c);
+  //printf("inode_create %d\n\n", inode_c);
   bool dir_addd = dir_add(dir, fetch_filename(name), inode_sector);
   //printf("dir_add: %d name: %s\n\n", dir_addd, fetch_filename(name));
   bool success = (dir != NULL
@@ -80,6 +81,7 @@ filesys_create (const char *name, off_t initial_size)
   return success;
 }
 
+
 /* Opens the file with the given NAME.
    Returns the new file if successful or a null pointer
    otherwise.
@@ -88,12 +90,19 @@ filesys_create (const char *name, off_t initial_size)
 struct file *
 filesys_open (const char *path)
 {
-  struct inode* inode=fetch_from_path(path);
-  dir_lookup(dir_open(inode), fetch_filename(path), &inode);
-  if(inode==NULL)
+  if(strlen(path)==0)
     return NULL;
+  struct inode* inode=fetch_from_path(path);
+  if(inode==NULL){
+    return NULL;
+  }
+  dir_lookup(dir_open(inode), fetch_filename(path), &inode);
+  if(inode==NULL){
+    return NULL;
+  }
   return file_open(inode);
 }
+
 
 /* Deletes the file named NAME.
    Returns true if successful, false on failure.
@@ -102,12 +111,28 @@ filesys_open (const char *path)
 bool
 filesys_remove (const char *name) 
 {
+  bool success=false;
+  struct inode* inode;
   struct dir *dir = dir_open(fetch_from_path(name));
-  bool success = dir != NULL && dir_remove (dir, name);
+  //printf("filename: %s\n", fetch_filename(name));
+  if(thread_current()->working_dir==NULL)
+    thread_current()->working_dir=dir_open_root();
+  if(dir!=NULL){
+    dir_lookup(dir,fetch_filename(name),&inode);
+    if(inode==NULL || (inode_is_dir(inode) && (!dir_empty(dir_open(inode)) || dir_is_equal(dir_open(inode),thread_current()->working_dir)))) {
+
+      return false;
+    }
+    //printf("here: %d\n", dir_empty(dir_open(inode)));
+
+    success = dir_remove (dir, fetch_filename(name));
+  }
+  //printf("there %d\n", success);
   dir_close (dir); 
 
   return success;
 }
+
 
 /* Formats the file system. */
 static void
@@ -115,7 +140,7 @@ do_format (void)
 {
   //printf ("Formatting file system...");
   free_map_create ();
-  if (!dir_create (ROOT_DIR_SECTOR, 16))
+  if (!dir_create (ROOT_DIR_SECTOR, 16,ROOT_DIR_SECTOR))
     PANIC ("root directory creation failed");
   free_map_close ();
   //printf ("done.\n");
@@ -146,7 +171,7 @@ fetch_from_path(const char* path){
   //Determine path leading up to end file/directory
   strlcpy(name,path,strlen(path)-strlen(expected_file)+1);
   
-  //printf("Made it here: %s, %s, %s'\n", path, name, expected_file);
+  printf("Made it here: %s, %s, %s'\n", path, name, expected_file);
 
   //Determine start of path, absolute or relative
   if(thread_current()->working_dir==NULL){
@@ -159,62 +184,72 @@ fetch_from_path(const char* path){
     //printf("relative path\n\n");
     dir = dir_reopen(thread_current()->working_dir);
   }
+  inode=dir_get_inode(dir);
   //printf("current dir: %x\n\n", dir);
   //Check for empty paths absolute and relative
-  if(strlen(name)==0)
+  if(strlen(name)==0 || (strlen(name)==1 && name[0]=='.')){
     return dir_get_inode(thread_current()->working_dir);
+  }
   if(strlen(name)==1 && name[0]=='/'){
-    //printf("returning root\n");
     dir = dir_open_root();
-    //printf("root dir: %x", dir);
     struct inode* temp =  dir_get_inode(dir);
     dir_close(dir);
     return temp;
   }
   //char s[] = " /String/to/tokenize. ";
   char *token, *save_ptr;
-
   //Parse path
   for (token = strtok_r (name, "/", &save_ptr); token != NULL;
         token = strtok_r (NULL, "/", &save_ptr)){
     //printf ("token: %s\n", token);
-    
+    if(strcmp(token,"..")==0){
+      inode=dir_get_parent_inode(dir);
 
-    //Check if next directory in path exists
-    dir_lookup(dir, token, &inode);
-    //printf("lookup: %x, %x, %x\n\n", dir,token, inode);
-    //File or directory not found, return NULL
-    if(inode==NULL){
-      dir_close(dir);
-      //printf("NULL Dir\n");
-      return NULL;
-    }
-    //Directory found, navigate into directory for next search
-    else if(inode_is_dir(inode)){
-      dir=dir_open(inode);
-    }
-    //Found but not a directory, return NULL
-    else{
-      dir_close(dir);
-      //printf("NULL Dor\n\n\n\n\n\n\n");
-      return NULL; //Return immediately or break?
+    } else if(strcmp(token,".")==0){
+      //Do Nothing
+    } 
+    else {
+
+      //Check if next directory in path exists
+      dir_lookup(dir, token, &inode);
+      //printf("lookup: %x, %x, %x\n\n", dir,token, inode);
+      //File or directory not found, return NULL
+      if(inode==NULL){
+        dir_close(dir);
+        //printf("NULL Dir\n");
+        return NULL;
+      }
+      //Directory found, navigate into directory for next search
+      else if(inode_is_dir(inode)){
+        dir=dir_open(inode);
+      }
+      //Found but not a directory, return NULL
+      else{
+        dir_close(dir);
+        //printf("NULL Dor\n\n\n\n\n\n\n");
+        return NULL; //Return immediately or break?
+      }
     }
   }
   return inode;
 }
 
-
 char* fetch_filename(const char* path){
   char* name=malloc(strlen(path)+1);
   char *token, *save_ptr, *result;
+  if(strlen(path)==1 && path[0]=='/' || strlen(path)==0){
+    free(name);
+    return "";
+  }
   result=malloc(strlen(path)+1);
   *result="";
+
   strlcpy(name,path,strlen(path)+1);
   for (token = strtok_r (name, "/", &save_ptr); token != NULL;
         token = strtok_r (NULL, "/", &save_ptr)){
+
       strlcpy(result,token,strlen(token)+1);
     } 
   free(name);
-  //printf("result: %s\n\n", result);
   return result;
 }

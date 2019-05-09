@@ -60,7 +60,7 @@ struct inode
     bool removed;                       /* True if deleted, false otherwise. */
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
     struct inode_disk data;             /* Inode content. */
-	
+	  
   };
 
 /* Returns the block device sector that contains byte offset POS
@@ -439,8 +439,8 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   const uint8_t *buffer = buffer_;
   off_t bytes_written = 0;
   uint8_t *bounce = NULL;
-
-  if (inode->deny_write_cnt || (inode->data.is_directory&& inode->open_cnt >9))
+  //printf("deny cnt: %d\n", inode->deny_write_cnt);
+  if (is_denied(inode))
     return 0;
   int sectors_to_allocate;
   int current_sectors = 0;
@@ -535,6 +535,7 @@ void
 inode_deny_write (struct inode *inode)
 {
   inode->deny_write_cnt++;
+  //printf("Deny write: %d\n", inode_is_dir(inode));
   ASSERT (inode->deny_write_cnt <= inode->open_cnt);
 }
 
@@ -655,5 +656,16 @@ void inode_set_dir(struct inode* inode){
 }
 bool inode_is_dir(struct inode* inode){
   return inode->data.is_directory;
+}
+
+bool is_denied(struct inode* inode){
+  //printf("deny_cnt in is_denied: %d\n", inode->deny_write_cnt);
+  return inode->deny_write_cnt > 0;
+}
+
+
+bool deny_cnt(struct inode* inode){
+  //printf("deny_cnt in is_denied: %d\n", inode->deny_write_cnt);
+  return inode->deny_write_cnt;
 }
 

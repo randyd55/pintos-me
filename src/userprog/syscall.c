@@ -87,6 +87,12 @@ syscall_handler (struct intr_frame *f UNUSED)
       	exit(-1);
       break;
 
+    case SYS_REMOVE :
+      if (check_pointer(f->esp + 4))
+        f->eax = remove((char*)*(int*) (f->esp + 4) );
+      else
+        exit(-1);
+      break;
     case SYS_FILESIZE:
       f->eax = filesize(*(int*)(f->esp +4));
       break;
@@ -162,7 +168,8 @@ bool
 chdir (const char *dir){
   struct inode* inode;
   struct dir* new_dir;
-  dir_lookup(thread_current()->working_dir,dir,&inode);
+  inode=fetch_from_path(dir);
+  dir_lookup(dir_open(inode),fetch_filename(dir),&inode);
   if(new_dir==NULL)
     return false;
   else{
@@ -192,31 +199,48 @@ mkdir (const char *dir){
   int location; 
    //char *name;
   //strlcpy(name,dir,strlen(dir));
-  if(free_map_allocate(1,&location))
-    success=dir_create(location,0);
+  if(strlen(dir) == 0)
+    return false;
+
+ 
   //printf("dir in mkdir: %s\n", dir);
   
   //printf("fetchr: %s\n", fetch_from_path(dir));
   struct dir* parent_dir = dir_open(fetch_from_path(dir));
 
   name = fetch_filename(dir);
-  
-  //printf("adding name %s to directory\n\n", name);
-  dir_add(parent_dir,name,location);
-  
-  //maybe set the isdirectory member of the file struct here
-  //printf("directory %s successfully made?: %d\n", dir, success);
 
+   if(free_map_allocate(1,&location))
+    success=dir_create(location,0,inode_get_inumber(dir_get_inode(parent_dir)));
+  //printf("adding name %s to directory\n\n", name);
+  bool added= dir_add(parent_dir,name,location);
+  struct inode *inode = NULL;
+  //printf("hihihi\n");
+  //printf("name: %s\n\n", name);
+  dir_lookup(parent_dir, name, &inode);  
+  //printf("directory %s successfully made?: %d, added: %d\n", dir, success, added);
+  inode_set_dir(inode);
+
+  //inode_deny_write(inode);
+  return success;
+}
+
+
+bool 
+readdir (int fd, char *name){
+  struct file* file;
+  bool success=false;
+  file= thread_current()->files[fd];
+  if(file!=NULL){
+    if(inode_is_dir(file_get_inode(file)))
+      success=dir_readdir(dir_open(file_get_inode(file)),name);
+  }
   return success;
 }
 
 bool 
-readdir (int fd, char *name){
-  return true;
-}
-
-bool 
 isdir (int fd){
+  //printf("fd isdir: %d\n\n", fd);
   return inode_is_dir(file_get_inode(thread_current()->files[fd]));
   //what if they pass in fd == 0 || fd == 1?
   //return if the directory is set or not
@@ -225,7 +249,12 @@ isdir (int fd){
 
 int 
 inumber (int fd){
-  return true;
+  struct file* file;
+  file= thread_current()->files[fd];
+  if(file!=NULL){
+    return inode_get_inumber(file_get_inode(file));
+  }
+  return -1;
 }
 
 
@@ -421,12 +450,17 @@ write (int fd, const void *buffer, unsigned size)
     lock_release(&filesys_lock);
     exit(-1);
   }
+  
   //STDOUT write
   else if(fd == 1)
   {
     //User input
     putbuf((char*)buffer, size ); 
     written = size;
+  }
+  else if(isdir(fd)){
+
+    written = -1;
   }
   //User file write
   else 

@@ -12,6 +12,8 @@ struct dir
   {
     struct inode *inode;                /* Backing store. */
     off_t pos;                          /* Current position. */
+    int entry_cnt;
+    block_sector_t parent;
   };
 
 /* A single directory entry. */
@@ -26,11 +28,14 @@ static struct dir root_dir;
 /* Creates a directory with space for ENTRY_CNT entries in the
    given SECTOR.  Returns true if successful, false on failure. */
 bool
-dir_create (block_sector_t sector, size_t entry_cnt)
+dir_create (block_sector_t sector, size_t entry_cnt, block_sector_t parent)
 {
   bool success = inode_create (sector, entry_cnt * sizeof (struct dir_entry));
   if(success){
     inode_set_dir(inode_open(sector));
+    printf("Sector create: %d\n\n",sector);
+    dir_open(inode_open(sector))->entry_cnt=0;
+    dir_open(inode_open(sector))->parent=parent;
     //inode_deny_write(inode_open(sector));
   }
   return success;
@@ -131,8 +136,11 @@ dir_lookup (const struct dir *dir, const char *name,
 
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
-
-  if (lookup (dir, name, &e, NULL))
+  if(name==NULL || strlen(name)==0)
+    return dir_get_inode(dir);
+  if(strcmp(name,".")==0)
+    *inode= dir_get_inode(dir);
+  else if (lookup (dir, name, &e, NULL))
     *inode = inode_open (e.inode_sector);
   else
     *inode = NULL;
@@ -152,17 +160,19 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
   struct dir_entry e;
   off_t ofs;
   bool success = false;
-
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
-
+  
   /* Check NAME for validity. */
-  if (*name == '\0' || strlen (name) > NAME_MAX)
+  if (*name == '\0' || strlen (name) > NAME_MAX){
+    //printf("name validity\n\n");
     return false;
+  }
 
   /* Check that NAME is not in use. */
-  if (lookup (dir, name, NULL, NULL))
+  if (lookup (dir, name, NULL, NULL)){
     goto done;
+  }
 
   /* Set OFS to offset of free slot.
      If there are no free slots, then it will be set to the
@@ -180,9 +190,20 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
   e.in_use = true;
   strlcpy (e.name, name, sizeof e.name);
   e.inode_sector = inode_sector;
+  int denied = deny_cnt(dir->inode);
+  while(is_denied(dir->inode)){
+    inode_allow_write(dir->inode); 
+  }
   success = inode_write_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
+  for(; denied>0; denied--)
+    inode_deny_write(dir->inode);
+  //printf("is denied: %d\n", is_denied(dir->inode));
+  //printf("deny count at the end of dir_add: %d\n", deny_cnt(dir->inode));
 
  done:
+  if(success)
+      dir->entry_cnt++;
+  printf("add entry count of parent of %s: %d\n", name, dir->entry_cnt);
   return success;
 }
 
@@ -214,12 +235,16 @@ dir_remove (struct dir *dir, const char *name)
   if (inode_write_at (dir->inode, &e, sizeof e, ofs) != sizeof e) 
     goto done;
 
+
   /* Remove inode. */
   inode_remove (inode);
   success = true;
 
  done:
   inode_close (inode);
+  if(success)
+    dir->entry_cnt--;
+  printf("rem entry count of parent of %s: %d\n", name, dir->entry_cnt);
   return success;
 }
 
@@ -243,4 +268,14 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
   return false;
 }
 
+bool dir_empty(struct dir* dir){
+  return dir->entry_cnt==0;
+}
+bool dir_is_equal(struct dir* dir1, struct dir* dir2){
+  return inode_get_inumber(dir_get_inode(dir1))==inode_get_inumber(dir_get_inode(dir2));
+}
 
+struct inode *
+dir_get_parent_inode(struct dir* dir){
+  return inode_open(dir->parent);
+}

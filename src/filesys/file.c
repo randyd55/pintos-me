@@ -24,7 +24,12 @@ file_open (struct inode *inode)
     {
       file->inode = inode;
       file->pos = 0;
-      file->deny_write = false;
+      if(inode_is_dir(inode)){
+        file_deny_write(file);
+      }
+      else{
+        file_allow_write(file);
+      }
       return file;
     }
   else
@@ -42,7 +47,6 @@ file_reopen (struct file *file)
 {
   return file_open (inode_reopen (file->inode));
 }
-
 /* Closes FILE. */
 void
 file_close (struct file *file)
