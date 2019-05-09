@@ -11,7 +11,7 @@
 
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
-#define DIRECT_BLOCKS 123
+#define DIRECT_BLOCKS 122
 #define SINGLE_BLOCKS 128
 #define DOUBLE_BLOCKS 128
 #define MAX_FILE_SIZE 16384
@@ -22,6 +22,7 @@ struct inode_disk
     //block_sector_t start;               				/* First data sector. */
     off_t length;                         				/* File size in bytes. */
     bool is_directory;
+    int entry_cnt;                                /* Number of entries in directory */
     unsigned magic;                       				/* Magic number. */
     block_sector_t direct_blocks[DIRECT_BLOCKS];	  	/*first 124 direct blocks*/
     block_sector_t singleIB;              				/*Location of single indirection block */
@@ -142,6 +143,7 @@ inode_create (block_sector_t sector, off_t length)
 
   //allocate direct blocks
   int inode_location = 0;
+  disk_inode->entry_cnt=0;
   disk_inode->is_directory=false;
   disk_inode->length = length;
   //printf("length: %d\n\n", disk_inode->length);
@@ -667,5 +669,14 @@ bool is_denied(struct inode* inode){
 bool deny_cnt(struct inode* inode){
   //printf("deny_cnt in is_denied: %d\n", inode->deny_write_cnt);
   return inode->deny_write_cnt;
+}
+void add_entry(struct inode* inode){
+  inode->data.entry_cnt++;
+}
+void remove_entry(struct inode* inode){
+  inode->data.entry_cnt--;
+}
+int entry_cnt(struct inode* inode){
+  return inode->data.entry_cnt;
 }
 

@@ -12,7 +12,6 @@ struct dir
   {
     struct inode *inode;                /* Backing store. */
     off_t pos;                          /* Current position. */
-    int entry_cnt;
     block_sector_t parent;
   };
 
@@ -33,9 +32,10 @@ dir_create (block_sector_t sector, size_t entry_cnt, block_sector_t parent)
   bool success = inode_create (sector, entry_cnt * sizeof (struct dir_entry));
   if(success){
     inode_set_dir(inode_open(sector));
-    printf("Sector create: %d\n\n",sector);
-    dir_open(inode_open(sector))->entry_cnt=0;
+    //printf("Sector create: %d\n\n",sector);
     dir_open(inode_open(sector))->parent=parent;
+    dir_open(inode_open(sector))->pos=0;
+
     //inode_deny_write(inode_open(sector));
   }
   return success;
@@ -48,10 +48,10 @@ dir_open (struct inode *inode)
 {
   struct dir *dir = calloc (1, sizeof *dir);
 
-  if (inode != NULL && dir != NULL)
+  if (inode != NULL && dir != NULL )
     {
       dir->inode = inode;
-      dir->pos = 0;
+      //dir->pos = 0;
       return dir;
     }
   else
@@ -166,7 +166,7 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
   /* Check NAME for validity. */
   if (*name == '\0' || strlen (name) > NAME_MAX){
     //printf("name validity\n\n");
-    return false;
+    goto done;
   }
 
   /* Check that NAME is not in use. */
@@ -202,8 +202,8 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
 
  done:
   if(success)
-      dir->entry_cnt++;
-  printf("add entry count of parent of %s: %d\n", name, dir->entry_cnt);
+      add_entry(dir_get_inode(dir));
+  //printf("add entry count of parent of %s: %d\n", name, dir->entry_cnt);
   return success;
 }
 
@@ -243,8 +243,8 @@ dir_remove (struct dir *dir, const char *name)
  done:
   inode_close (inode);
   if(success)
-    dir->entry_cnt--;
-  printf("rem entry count of parent of %s: %d\n", name, dir->entry_cnt);
+    remove_entry(dir_get_inode(dir));
+  //printf("rem entry count of parent of %s: %d\n", name, dir->entry_cnt);
   return success;
 }
 
@@ -255,13 +255,14 @@ bool
 dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
 {
   struct dir_entry e;
-
   while (inode_read_at (dir->inode, &e, sizeof e, dir->pos) == sizeof e) 
     {
       dir->pos += sizeof e;
       if (e.in_use)
         {
           strlcpy (name, e.name, NAME_MAX + 1);
+          printf("Readdir: %s\n", name);
+
           return true;
         } 
     }
@@ -269,7 +270,7 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
 }
 
 bool dir_empty(struct dir* dir){
-  return dir->entry_cnt==0;
+  return entry_cnt(dir_get_inode(dir))==0;
 }
 bool dir_is_equal(struct dir* dir1, struct dir* dir2){
   return inode_get_inumber(dir_get_inode(dir1))==inode_get_inumber(dir_get_inode(dir2));

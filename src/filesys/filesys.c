@@ -74,7 +74,7 @@ filesys_create (const char *name, off_t initial_size)
                   && dir_addd);
   if (!success && inode_sector != 0) 
     free_map_release (inode_sector, 1);
-  dir_close (dir);
+  //dir_close (dir);
   
   
   //printf("name: %s, success?: %d\n\n",name, success);
@@ -103,7 +103,6 @@ filesys_open (const char *path)
   return file_open(inode);
 }
 
-
 /* Deletes the file named NAME.
    Returns true if successful, false on failure.
    Fails if no file named NAME exists,
@@ -128,7 +127,7 @@ filesys_remove (const char *name)
     success = dir_remove (dir, fetch_filename(name));
   }
   //printf("there %d\n", success);
-  dir_close (dir); 
+  //dir_close (dir); 
 
   return success;
 }
@@ -171,7 +170,7 @@ fetch_from_path(const char* path){
   //Determine path leading up to end file/directory
   strlcpy(name,path,strlen(path)-strlen(expected_file)+1);
   
-  printf("Made it here: %s, %s, %s'\n", path, name, expected_file);
+  //printf("Made it here: %s, %s, %s'\n", path, name, expected_file);
 
   //Determine start of path, absolute or relative
   if(thread_current()->working_dir==NULL){
@@ -193,7 +192,7 @@ fetch_from_path(const char* path){
   if(strlen(name)==1 && name[0]=='/'){
     dir = dir_open_root();
     struct inode* temp =  dir_get_inode(dir);
-    dir_close(dir);
+    //dir_close(dir);
     return temp;
   }
   //char s[] = " /String/to/tokenize. ";
@@ -215,7 +214,7 @@ fetch_from_path(const char* path){
       //printf("lookup: %x, %x, %x\n\n", dir,token, inode);
       //File or directory not found, return NULL
       if(inode==NULL){
-        dir_close(dir);
+        //dir_close(dir);
         //printf("NULL Dir\n");
         return NULL;
       }
@@ -225,7 +224,7 @@ fetch_from_path(const char* path){
       }
       //Found but not a directory, return NULL
       else{
-        dir_close(dir);
+        //dir_close(dir);
         //printf("NULL Dor\n\n\n\n\n\n\n");
         return NULL; //Return immediately or break?
       }

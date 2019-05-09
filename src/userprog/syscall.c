@@ -137,7 +137,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_READDIR :
       if(check_pointer(f->esp + 4) && check_pointer(f->esp + 8))
         f->eax = readdir((*(int*)(f->esp + 4)),
-        (char *) *(int*) f->esp + 8);
+        (char *) *(int*) (f->esp + 8));
       else
         f->eax = false; //not sure whether to exit or ret. false
       break;
@@ -217,12 +217,16 @@ mkdir (const char *dir){
   struct inode *inode = NULL;
   //printf("hihihi\n");
   //printf("name: %s\n\n", name);
+  if(!added){
+    free_map_release(location,1);
+  }
   dir_lookup(parent_dir, name, &inode);  
   //printf("directory %s successfully made?: %d, added: %d\n", dir, success, added);
   inode_set_dir(inode);
 
+
   //inode_deny_write(inode);
-  return success;
+  return success && added;
 }
 
 
