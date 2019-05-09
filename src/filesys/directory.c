@@ -4,7 +4,7 @@
 #include <list.h>
 #include "filesys/filesys.h"
 #include "filesys/inode.h"
-
+#include "filesys/file.h"
 #include "threads/malloc.h"
 
 /* A directory. */
@@ -47,11 +47,11 @@ struct dir *
 dir_open (struct inode *inode) 
 {
   struct dir *dir = calloc (1, sizeof *dir);
-
+  //printf("here\n");
   if (inode != NULL && dir != NULL )
     {
       dir->inode = inode;
-      //dir->pos = 0;
+      dir->pos = 0;
       return dir;
     }
   else
@@ -255,14 +255,18 @@ bool
 dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
 {
   struct dir_entry e;
+  //printf("pos: %d\n\n", dir->pos);
   while (inode_read_at (dir->inode, &e, sizeof e, dir->pos) == sizeof e) 
     {
       dir->pos += sizeof e;
       if (e.in_use)
         {
           strlcpy (name, e.name, NAME_MAX + 1);
-          printf("Readdir: %s\n", name);
+          //printf("Readdir: %s\n", name);
 
+          //file_seek(file, file_tell(file) + sizeof e);
+  
+          //e.in_use = false;
           return true;
         } 
     }
@@ -279,4 +283,11 @@ bool dir_is_equal(struct dir* dir1, struct dir* dir2){
 struct inode *
 dir_get_parent_inode(struct dir* dir){
   return inode_open(dir->parent);
+}
+void dir_set_pos(struct dir* dir, int pos){
+  dir->pos=pos;
+}
+int
+dir_entry_size(){
+  return sizeof(struct dir_entry);
 }

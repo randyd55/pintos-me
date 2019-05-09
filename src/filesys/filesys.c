@@ -98,6 +98,7 @@ filesys_open (const char *path)
   }
   dir_lookup(dir_open(inode), fetch_filename(path), &inode);
   if(inode==NULL){
+    printf("here\n");
     return NULL;
   }
   return file_open(inode);
@@ -156,6 +157,7 @@ is_absolute_path(const char* file){
 
 struct inode *
 fetch_from_path(const char* path){
+  //printf("hope??\n");
   char* name=malloc(strlen(path)*sizeof(char)+1);
   char* expected_file = malloc(strlen(fetch_filename(path))+1);
   //printf("filename length: %d\n",strlen(fetch_filename(path))+1);
@@ -183,6 +185,8 @@ fetch_from_path(const char* path){
     //printf("relative path\n\n");
     dir = dir_reopen(thread_current()->working_dir);
   }
+  if(dir==NULL)
+    return NULL;
   inode=dir_get_inode(dir);
   //printf("current dir: %x\n\n", dir);
   //Check for empty paths absolute and relative
@@ -191,8 +195,10 @@ fetch_from_path(const char* path){
   }
   if(strlen(name)==1 && name[0]=='/'){
     dir = dir_open_root();
+    if(dir==NULL)
+      return NULL;
     struct inode* temp =  dir_get_inode(dir);
-    //dir_close(dir);
+    dir_close(dir);
     return temp;
   }
   //char s[] = " /String/to/tokenize. ";
@@ -214,22 +220,31 @@ fetch_from_path(const char* path){
       //printf("lookup: %x, %x, %x\n\n", dir,token, inode);
       //File or directory not found, return NULL
       if(inode==NULL){
-        //dir_close(dir);
-        //printf("NULL Dir\n");
+        dir_close(dir);
+        //printf("NULL Dir\n")
+        free(name);
+        free(expected_file);
         return NULL;
       }
       //Directory found, navigate into directory for next search
       else if(inode_is_dir(inode)){
         dir=dir_open(inode);
+        if(dir==NULL)
+          return NULL;
       }
       //Found but not a directory, return NULL
       else{
-        //dir_close(dir);
+        dir_close(dir);
         //printf("NULL Dor\n\n\n\n\n\n\n");
+        free(name);
+        free(expected_file);
         return NULL; //Return immediately or break?
       }
     }
   }
+  dir_close(dir);
+  free(name);
+  free(expected_file);
   return inode;
 }
 

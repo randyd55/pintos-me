@@ -135,9 +135,9 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
 
     case SYS_READDIR :
-      if(check_pointer(f->esp + 4) && check_pointer(f->esp + 8))
+      if(check_pointer(f->esp + 8))
         f->eax = readdir((*(int*)(f->esp + 4)),
-        (char *) *(int*) (f->esp + 8));
+        ((char *)*(int*)(f->esp + 8)));
       else
         f->eax = false; //not sure whether to exit or ret. false
       break;
@@ -167,15 +167,30 @@ syscall_handler (struct intr_frame *f UNUSED)
 bool 
 chdir (const char *dir){
   struct inode* inode;
+  struct dir* old_dir;
   struct dir* new_dir;
   inode=fetch_from_path(dir);
-  dir_lookup(dir_open(inode),fetch_filename(dir),&inode);
-  if(new_dir==NULL)
+  old_dir=dir_open(inode);
+  if(old_dir==NULL)
+    return false;
+  if(strcmp(fetch_filename(dir),"..")!=0 && inode!=NULL){
+    dir_lookup(old_dir,fetch_filename(dir),&inode);
+  } else {
+    new_dir=dir_open(inode);
+    if(new_dir==NULL)
+      return false;
+    dir_close(thread_current()->working_dir);
+    thread_current()->working_dir=new_dir;
+    return true;
+  }
+  dir_close(old_dir);
+  if(inode==NULL)
     return false;
   else{
     new_dir=dir_open(inode);
     if(new_dir==NULL)
       return false;
+    dir_close(thread_current()->working_dir);
     thread_current()->working_dir=new_dir;
     return true;
   }
@@ -193,26 +208,27 @@ chdir (const char *dir){
 
 bool 
 mkdir (const char *dir){
-  //printf("making directory\n\n");
   char* name=malloc(strlen(dir)*sizeof(char));
   bool success;
   int location; 
    //char *name;
   //strlcpy(name,dir,strlen(dir));
-  if(strlen(dir) == 0)
+  if(strlen(dir) == 0){
     return false;
+  }
 
  
   //printf("dir in mkdir: %s\n", dir);
   
   //printf("fetchr: %s\n", fetch_from_path(dir));
   struct dir* parent_dir = dir_open(fetch_from_path(dir));
-
+  if(parent_dir==NULL)
+    return false;
   name = fetch_filename(dir);
 
    if(free_map_allocate(1,&location))
     success=dir_create(location,0,inode_get_inumber(dir_get_inode(parent_dir)));
-  //printf("adding name %s to directory\n\n", name);
+  printf("adding name %s to directory\n\n", name);
   bool added= dir_add(parent_dir,name,location);
   struct inode *inode = NULL;
   //printf("hihihi\n");
@@ -221,9 +237,11 @@ mkdir (const char *dir){
     free_map_release(location,1);
   }
   dir_lookup(parent_dir, name, &inode);  
-  //printf("directory %s successfully made?: %d, added: %d\n", dir, success, added);
+  printf("directory %s successfully made?: %d, added: %d\n", dir, success, added);
   inode_set_dir(inode);
-
+  dir_close(parent_dir);
+  free(name);
+  //printf("making directory\n");
 
   //inode_deny_write(inode);
   return success && added;
@@ -233,12 +251,19 @@ mkdir (const char *dir){
 bool 
 readdir (int fd, char *name){
   struct file* file;
+  struct dir* dir;
   bool success=false;
   file= thread_current()->files[fd];
+  //printf("file pos: %d\n", file_tell(file));
   if(file!=NULL){
     if(inode_is_dir(file_get_inode(file)))
-      success=dir_readdir(dir_open(file_get_inode(file)),name);
+      dir=dir_open(file_get_inode(file));
+      dir_set_pos(dir,file_tell(file));
+      success=dir_readdir(dir,name);
   }
+  if(success)
+    file_seek(file,file_tell(file)+dir_entry_size());
+  dir_close(dir);
   return success;
 }
 

@@ -36,6 +36,7 @@ file_open (struct inode *inode)
     {
       inode_close (inode);
       free (file);
+      printf("HEre\n");
       return NULL;
     }
 }
