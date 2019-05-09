@@ -6,6 +6,7 @@
 #include "filesys/inode.h"
 #include "filesys/file.h"
 #include "threads/malloc.h"
+#include "userprog/syscall.h"
 
 /* A directory. */
 struct dir 
@@ -186,17 +187,22 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
     if (!e.in_use)
       break;
 
+
   /* Write slot. */
   e.in_use = true;
   strlcpy (e.name, name, sizeof e.name);
   e.inode_sector = inode_sector;
+  //lock_acquire(&filesys_lock);
   int denied = deny_cnt(dir->inode);
+  //printf("denied before: %d\n", deny_cnt(dir->inode));
   while(is_denied(dir->inode)){
     inode_allow_write(dir->inode); 
   }
   success = inode_write_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
   for(; denied>0; denied--)
     inode_deny_write(dir->inode);
+  //printf("denied after: %d\n", deny_cnt(dir->inode));
+  //lock_release(&filesys_lock);
   //printf("is denied: %d\n", is_denied(dir->inode));
   //printf("deny count at the end of dir_add: %d\n", deny_cnt(dir->inode));
 

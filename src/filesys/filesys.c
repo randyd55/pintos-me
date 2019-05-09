@@ -98,7 +98,7 @@ filesys_open (const char *path)
   }
   dir_lookup(dir_open(inode), fetch_filename(path), &inode);
   if(inode==NULL){
-    printf("here\n");
+    //printf("here\n");
     return NULL;
   }
   return file_open(inode);

@@ -340,16 +340,18 @@ inode_close (struct inode *inode)
   /* Ignore null pointer. */
   if (inode == NULL)
     return;
-
+  //printf("sector: %d\n", inode->sector);
   /* Release resources if this was the last opener. */
   if (--inode->open_cnt == 0)
     {
+
       /* Remove from inode list and release lock. */
       list_remove (&inode->elem);
 
       /* Deallocate blocks if removed. */
       if (inode->removed)
         {
+          block_write(fs_device, inode->sector, &inode->data);
           free_map_release (inode->sector, 1);
           free_map_release (inode->data.direct_blocks[0],
                             bytes_to_sectors (inode->data.length));
@@ -666,7 +668,7 @@ bool is_denied(struct inode* inode){
 }
 
 
-bool deny_cnt(struct inode* inode){
+int deny_cnt(struct inode* inode){
   //printf("deny_cnt in is_denied: %d\n", inode->deny_write_cnt);
   return inode->deny_write_cnt;
 }
