@@ -53,6 +53,7 @@ filesys_create (const char *name, off_t initial_size)
   block_sector_t inode_sector = 0;
   struct dir *dir = dir_open_root ();
   struct inode* inode = fetch_from_path(name);
+
   //Determine directory to create file in
   if(inode != NULL && inode_is_dir(inode)){
     dir = dir_open(inode);
@@ -115,7 +116,7 @@ filesys_remove (const char *name)
     thread_current()->working_dir = dir_open_root();
 
   if(dir!=NULL){
-    //Find file to remove in directory 
+    //Find file to remove in directory
     dir_lookup(dir,fetch_filename(name),&inode);
     //Dont remove if inode is null, or if its a directory and not empty or
     //its the current working directory
@@ -181,7 +182,7 @@ Parameters:
 
 Return:
 - NULL, if the path leads to no existing directory
-- inode of the second lowest directory in the path 
+- inode of the second lowest directory in the path
 */
 
 struct inode *
@@ -290,7 +291,7 @@ Return:
   i.e. '/a/c/b/d/filename.txt' would return 'filename.txt'
 
 */
-char* 
+char*
 fetch_filename(const char* path){
   char* name = malloc(strlen(path) + 1);
   char *token, *save_ptr, *result;
@@ -311,7 +312,7 @@ fetch_filename(const char* path){
 
       strlcpy(result,token,strlen(token) + 1);
   }
-  
+
   free(name);
   return result;
 }
