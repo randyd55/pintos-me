@@ -3,6 +3,7 @@
 #include "filesys/inode.h"
 #include "threads/malloc.h"
 
+//Randy here
 /* An open file. */
 struct file
   {
@@ -57,7 +58,8 @@ file_close (struct file *file)
       free (file);
     }
 }
-
+//Randy done
+\//Tim here
 /* Returns the inode encapsulated by FILE. */
 struct inode *
 file_get_inode (struct file *file)
@@ -171,3 +173,5 @@ file_tell (struct file *file)
   ASSERT (file != NULL);
   return file->pos;
 }
+
+//Tim done
