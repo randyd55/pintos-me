@@ -47,27 +47,27 @@ filesys_done (void)
 bool
 filesys_create (const char *name, off_t initial_size)
 {
-  //printf("creating %s\n\n", name);
-  //add a directory parameter?
+
   if(strlen(name) == 0)
-   return false;
-  block_sector_t inode_sector = 0; //need to change to the proper dir
+    return false;
+  block_sector_t inode_sector = 0;
   struct dir *dir = dir_open_root ();
   struct inode* inode = fetch_from_path(name);
-
+  //Determine directory to create file in
   if(inode != NULL && inode_is_dir(inode)){
     dir = dir_open(inode);
   } else {
     return false;
   }
 
+  //Allocate resources for file and add
   bool allocate = free_map_allocate(1, &inode_sector);
   bool inode_c = inode_create(inode_sector, initial_size);
-  bool dir_addd = dir_add(dir, fetch_filename(name), inode_sector);
+  bool added = dir_add(dir, fetch_filename(name), inode_sector);
   bool success = (dir != NULL
                   && allocate
                   && inode_c
-                  && dir_addd);
+                  && added);
   if (!success && inode_sector != 0)
     free_map_release (inode_sector, 1);
 
@@ -107,15 +107,18 @@ filesys_remove (const char *name)
 {
   bool success = false;
   struct inode* inode;
+  //Get the parent directory of the file you want to remove
   struct dir *dir = dir_open(fetch_from_path(name));
 
+  //Ensure thread has a working directory
   if(thread_current()->working_dir == NULL)
     thread_current()->working_dir = dir_open_root();
 
   if(dir!=NULL){
-
+    //Find file to remove in directory 
     dir_lookup(dir,fetch_filename(name),&inode);
-
+    //Dont remove if inode is null, or if its a directory and not empty or
+    //its the current working directory
     if(inode == NULL || (inode_is_dir(inode) && (!dir_empty(dir_open(inode))
      || dir_is_equal(dir_open(inode),thread_current()->working_dir)))) {
 
@@ -170,13 +173,15 @@ is_absolute_path(const char* file)
 fetch_from_path, fetches the file name given,
 sets the working_directory of the current thread, and parses the path given
 
+Allows functions to receive file and determine course of action given
+the parent directory of their expected file/directory
+
 Parameters:
 - const char* path
 
 Return:
 - NULL, if the path leads to no existing directory
-- temp_inode or inode, the appropriate inode associated to the
-associated directory
+- inode of the second lowest directory in the path 
 */
 
 struct inode *
@@ -187,20 +192,20 @@ fetch_from_path (const char* path) {
 
   struct dir* dir;
   struct inode* inode = NULL;
-  struct inode* dir_nav = NULL;
-
 
   //Get filename of file/directory at end of path
-  strlcpy(expected_file,fetch_filename(path),strlen(fetch_filename(path)) + 1);
+  strlcpy(expected_file,fetch_filename(path),
+    strlen(fetch_filename(path)) + 1);
 
   //Determine path leading up to end file/directory
   strlcpy(name, path, strlen(path) - strlen(expected_file) + 1);
 
-  //Determine start of path, absolute or relative
+  //Ensure current thread has a working directory
   if(thread_current()->working_dir == NULL){
     thread_current()->working_dir = dir_open_root();
   }
 
+  //Determine start of path, absolute or relative
   if(is_absolute_path(name)){
     dir = dir_open_root();
   } else {
@@ -221,22 +226,22 @@ fetch_from_path (const char* path) {
     dir = dir_open_root();
     if(dir == NULL)
       return NULL;
-    struct inode* temp_inode = dir_get_inode(dir);
+    inode = dir_get_inode(dir);
     dir_close(dir);
-    return temp_inode;
+    return inode;
   }
 
-
+  //Path parsing
   char *token, *save_ptr;
-
-  //Parse path
   for (token = strtok_r (name, "/", &save_ptr); token != NULL;
         token = strtok_r (NULL, "/", &save_ptr)){
+    //Check for special directorys '.' and '..'
+    //Set to parent directory of current
     if(strcmp(token,"..") == 0){
       inode = dir_get_parent_inode(dir);
 
     } else if(strcmp(token,".") == 0){
-      //Do Nothing
+      //Do Nothing, continue parsing
     } else {
 
       //Check if next directory in path exists
@@ -262,11 +267,11 @@ fetch_from_path (const char* path) {
         dir_close(dir);
         free(name);
         free(expected_file);
-        return NULL; //Return immediately or break?
+        return NULL;
       }
     }
   }
-
+  //Once reached end of shaved path, return the inode
   dir_close(dir);
   free(name);
   free(expected_file);
@@ -281,10 +286,12 @@ Parameters:
 - const char* path, the path for the associated file or directory
 
 Return:
--
+- char* result, the name of the file at the end of a path,
+  i.e. '/a/c/b/d/filename.txt' would return 'filename.txt'
 
 */
-char* fetch_filename(const char* path){
+char* 
+fetch_filename(const char* path){
   char* name = malloc(strlen(path) + 1);
   char *token, *save_ptr, *result;
 
