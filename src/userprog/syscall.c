@@ -164,21 +164,29 @@ syscall_handler (struct intr_frame *f UNUSED)
 
 //Chineye Driving
 
+/*
+  Changes the working directory of a thread, returns false if
+  Directory doesn't exist
+*/
 bool 
 chdir (const char *dir){
   struct inode* inode;
   struct dir* old_dir;
   struct dir* new_dir;
   lock_acquire(&filesys_lock);
+  //Determine parent directory of directory change
   inode=fetch_from_path(dir);
   old_dir=dir_open(inode);
   if(old_dir==NULL){
     lock_release(&filesys_lock);
     return false;
   }
+  //Check that end of path isnt a special directory
   if(strcmp(fetch_filename(dir),"..")!=0 && inode!=NULL){
     dir_lookup(old_dir,fetch_filename(dir),&inode);
   } else {
+    //If its '..', just set thread working directory to the
+    //directory found at fetch_from_path
     new_dir=dir_open(inode);
     if(new_dir==NULL){
       lock_release(&filesys_lock);
@@ -190,12 +198,13 @@ chdir (const char *dir){
     return true;
   }
   dir_close(old_dir);
+
+  //If not a special directory, change working directory to the direcotry
+  //found at the end of path
   if(inode==NULL){
     lock_release(&filesys_lock);
     return false;
-  }
-  
-  else{
+  } else{
     new_dir=dir_open(inode);
     if(new_dir==NULL){
       lock_release(&filesys_lock);
@@ -206,93 +215,86 @@ chdir (const char *dir){
     lock_release(&filesys_lock);
     return true;
   }
-  /*bool exists = dir_opedir-mk-tree) create "/0/0/2/0": FAILEDn(dir->inode)
-  if (!exists){
-	  return false
-	} else{
-		
-	  thread_current()->working_dir = dir;
-	}*/
-  
   
 
 }
-
+/*
+  Makes a new directory with the path const char* dir
+*/
 bool 
 mkdir (const char *dir){
   char* name=malloc(strlen(dir)*sizeof(char));
   bool success;
   int location; 
-   //char *name;
-  //strlcpy(name,dir,strlen(dir));
+
   if(strlen(dir) == 0){
     return false;
   }
 
- 
-  //printf("dir in mkdir: %s\n", dir);
   lock_acquire(&filesys_lock);
-  //printf("fetchr: %s\n", fetch_from_path(dir));
+  //Determine parent directory to create new directory in
   struct dir* parent_dir = dir_open(fetch_from_path(dir));
   if(parent_dir==NULL){
     lock_release(&filesys_lock);
     return false;
   }
+  //Determine name of new directory
   name = fetch_filename(dir);
 
-   if(free_map_allocate(1,&location))
-    success=dir_create(location,0,inode_get_inumber(dir_get_inode(parent_dir)));
-  //printf("adding name %s to directory\n\n", name);
+  //Allocate and add directory
+  if(free_map_allocate(1,&location))
+    success=dir_create(location,0,
+            inode_get_inumber(dir_get_inode(parent_dir)));
   bool added= dir_add(parent_dir,name,location);
   struct inode *inode = NULL;
-  //printf("hihihi\n");
-  //printf("name: %s\n\n", name);
+
+  //If add failed(name collision, etc), free resources
   if(!added){
     free_map_release(location,1);
-  } else {
-    dir_lookup(parent_dir, name, &inode);  
-    //printf("directory %s successfully made?: %d, added: %d\n", dir, success, added);
-    inode_set_dir(inode);
-  }
+  } 
+
   dir_close(parent_dir);
   free(name);
-  //printf("making directory\n");
   lock_release(&filesys_lock);
-  //inode_deny_write(inode);
   return success && added;
 }
 
-
+/*
+  Reads entry names in a directory and copies it to char* name
+*/
 bool 
 readdir (int fd, char *name){
   struct file* file;
   struct dir* dir;
   bool success=false;
+
   lock_acquire(&filesys_lock);
   file= thread_current()->files[fd];
-  //printf("file pos: %d\n", file_tell(file));
-  if(file!=NULL){
-    if(inode_is_dir(file_get_inode(file)))
-      dir=dir_open(file_get_inode(file));
-      dir_set_pos(dir,file_tell(file));
-      success=dir_readdir(dir,name);
+  //Determine directory to read and read entry
+  if(file!=NULL && inode_is_dir(file_get_inode(file))){
+    dir=dir_open(file_get_inode(file));
+    dir_set_pos(dir,file_tell(file));
+    success=dir_readdir(dir,name);
   }
+  //Update file pos so that directory can continue reading while its open
   if(success)
     file_seek(file,file_tell(file)+dir_entry_size());
   dir_close(dir);
   lock_release(&filesys_lock);
   return success;
 }
-
+/*
+  Returns bool on whether or not a file is a directory
+*/
 bool 
 isdir (int fd){
-  //printf("fd isdir: %d\n\n", fd);
+  if(fd<2 || fd>128)
+    return false;
   return inode_is_dir(file_get_inode(thread_current()->files[fd]));
-  //what if they pass in fd == 0 || fd == 1?
-  //return if the directory is set or not
-  //bool isdir = (thread_current()->files[fd]->isdirectory) != NULL;
 }
-
+/*
+  Returns free map sector of inode which is unique to that inode
+*/
 int 
 inumber (int fd){
   struct file* file;
