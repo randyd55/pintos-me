@@ -8,6 +8,8 @@
 #include "threads/malloc.h"
 #include "userprog/syscall.h"
 
+//Anthony here
+
 /* A directory. */
 struct dir
   {
@@ -61,6 +63,10 @@ dir_open (struct inode *inode)
       return NULL;
     }
 }
+
+//Anthony done
+//Randy here
+
 
 /* Opens the root directory and returns a directory for it.
    Return true if successful, false on failure. */
@@ -205,6 +211,8 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
   return success;
 }
 
+//Randy done
+
 /* Removes any entry for NAME in DIR.
    Returns true if successful, false on failure,
    which occurs only if there is no file with the given NAME. */
@@ -244,6 +252,9 @@ dir_remove (struct dir *dir, const char *name)
     remove_entry(dir_get_inode(dir));
   return success;
 }
+
+//Tim here
+
 
 /* Reads the next directory entry in DIR and stores the name in
    NAME.  Returns true if successful, false if the directory
@@ -296,6 +307,10 @@ dir_is_equal(struct dir* dir1, struct dir* dir2){
   == inode_get_inumber(dir_get_inode(dir2));
 }
 
+//Tim done
+//Chineye here
+
+
 /* dir_get_parent_inode, retrieves the parent directory of dir
   Parameters:
   - struct dir* dir, the first directory
@@ -332,3 +347,5 @@ int
 dir_entry_size(){
   return sizeof(struct dir_entry);
 }
+
+//Chineye done
