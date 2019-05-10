@@ -7,9 +7,12 @@
 #include "filesys/inode.h"
 #include "filesys/directory.h"
 #include "threads/thread.h"
+#include "threads/synch.h"
+#include "userprog/syscall.h"
 #define READDIR_MAX_LEN 14
 /* Partition that contains the file system. */
 struct block *fs_device;
+
 
 static void do_format (void);
 
@@ -65,6 +68,7 @@ filesys_create (const char *name, off_t initial_size)
   // Anthony done
 
   //Allocate resources for file and add
+  lock_acquire(&create_lock);
   bool allocate = free_map_allocate(1, &inode_sector);
   bool inode_c = inode_create(inode_sector, initial_size);
   bool added = dir_add(dir, fetch_filename(name), inode_sector);
@@ -74,7 +78,8 @@ filesys_create (const char *name, off_t initial_size)
                   && added);
   if (!success && inode_sector != 0)
     free_map_release (inode_sector, 1);
-
+  lock_release(&create_lock);
+  
   return success;
 }
 
@@ -122,17 +127,19 @@ filesys_remove (const char *name)
   if(dir!=NULL){
     //Find file to remove in directory
     dir_lookup(dir,fetch_filename(name),&inode);
+    
     //Dont remove if inode is null, or if its a directory and not empty or
     //its the current working directory
     if(inode == NULL || (inode_is_dir(inode) && (!dir_empty(dir_open(inode))
      || dir_is_equal(dir_open(inode),thread_current()->working_dir)))) {
-
         return false;
     }
-
+    remove_lock_acquire(inode);
     success = dir_remove (dir, fetch_filename(name));
-  }
+    remove_lock_release(inode);
 
+  }
+  
   return success;
 }
 

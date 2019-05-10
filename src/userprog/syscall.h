@@ -8,7 +8,7 @@
 
 //Chineye Driving
 struct lock filesys_lock;
-
+struct lock create_lock;
 /*lock for extending the file*/
 struct lock filesys_extending_lock;
 

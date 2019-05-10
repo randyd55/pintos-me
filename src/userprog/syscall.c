@@ -18,8 +18,9 @@ void
 syscall_init (void)
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
-  lock_init(&filesys_lock); //might need to b00t this
+  lock_init(&filesys_lock);
   lock_init(&filesys_extending_lock);
+  lock_init(&create_lock);
 }
 
 /**
@@ -231,7 +232,6 @@ mkdir (const char *dir){
     return false;
   }
 
-  lock_acquire(&filesys_lock);
   //Determine parent directory to create new directory in
   struct dir* parent_dir = dir_open(fetch_from_path(dir));
   if(parent_dir==NULL){
@@ -255,7 +255,6 @@ mkdir (const char *dir){
 
   dir_close(parent_dir);
   free(name);
-  lock_release(&filesys_lock);
   return success && added;
 }
 
@@ -267,8 +266,6 @@ readdir (int fd, char *name){
   struct file* file;
   struct dir* dir;
   bool success=false;
-
-  lock_acquire(&filesys_lock);
   file= thread_current()->files[fd];
   //Determine directory to read and read entry
   if(file!=NULL && inode_is_dir(file_get_inode(file))){
@@ -280,7 +277,6 @@ readdir (int fd, char *name){
   if(success)
     file_seek(file,file_tell(file)+dir_entry_size());
   dir_close(dir);
-  lock_release(&filesys_lock);
   return success;
 }
 /*
@@ -490,12 +486,10 @@ write (int fd, const void *buffer, unsigned size)
   if(buffer==NULL)
     exit(-1);
   int written = 0;
-  lock_acquire(&filesys_lock);
   struct thread* t = thread_current();
   //Invalid file descriptor
   if(fd <= 0 || fd > 130)
   {
-    lock_release(&filesys_lock);
     exit(-1);
   }
   
@@ -515,7 +509,6 @@ write (int fd, const void *buffer, unsigned size)
   {
     written = file_write(t->files[fd],buffer,size); 
   }
-  lock_release(&filesys_lock);
   return written;
 }
 //Anthony Done

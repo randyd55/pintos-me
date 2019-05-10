@@ -8,6 +8,7 @@
 #include "threads/malloc.h"
 #include "devices/block.h"
 #include "threads/thread.h"
+#include "userprog/syscall.h"
 
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
@@ -66,6 +67,7 @@ struct inode
     bool removed;                       /* True if deleted, false otherwise. */
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
     struct inode_disk data;             /* Inode content. */
+    struct lock remove_lock;            /* lock for removal synchronization*/
 	  
   };
 
@@ -280,6 +282,7 @@ inode_open (block_sector_t sector)
   inode->open_cnt = 1;
   inode->deny_write_cnt = 0;
   inode->removed = false;
+  lock_init(&inode->remove_lock);
   block_read (fs_device, inode->sector, &inode->data);
   return inode;
 }
@@ -348,7 +351,6 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
   uint8_t *buffer = buffer_;
   off_t bytes_read = 0;
   uint8_t *bounce = NULL;
-  
   while (size > 0)
     {
       /* Disk sector to read, starting byte offset within sector. */
@@ -419,6 +421,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
     //number of sectors it needs to complete the write
     //if (offset + size) or the file's current length lies on a sector boundary
     //the number of sectors is adjusted accordingly
+    lock_acquire(&filesys_extending_lock);
   	current_sectors = inode->data.length % BLOCK_SECTOR_SIZE != 0 ? 
                       inode->data.length/BLOCK_SECTOR_SIZE + 1 : 
                       inode->data.length/BLOCK_SECTOR_SIZE;
@@ -487,7 +490,8 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       bytes_written += chunk_size;
 	}
   free (bounce);
-  
+  if(lock_held_by_current_thread(&filesys_extending_lock))
+    lock_release(&filesys_extending_lock);
   return bytes_written;
 }
 
@@ -636,3 +640,10 @@ int entry_cnt(struct inode* inode){
   return inode->data.entry_cnt;
 }
 
+void remove_lock_acquire(struct inode* inode){
+   lock_acquire(&inode->remove_lock);
+}
+
+void remove_lock_release(struct inode* inode){
+   lock_release(&inode->remove_lock);
+}
