@@ -16,7 +16,7 @@ static void do_format (void);
 /* Initializes t+he file system module.
    If FORMAT is +true, reformats the file system. */
 void
-filesys_init (bool format) 
+filesys_init (bool format)
 {
   fs_device = block_get_role (BLOCK_FILESYS);
   if (fs_device == NULL)
@@ -25,7 +25,7 @@ filesys_init (bool format)
   inode_init ();
   free_map_init ();
 
-  if (format) 
+  if (format)
     do_format ();
 
   free_map_open ();
@@ -34,7 +34,7 @@ filesys_init (bool format)
 /* Shuts down the file system module, writing any unwritten data
    to disk. */
 void
-filesys_done (void) 
+filesys_done (void)
 {
   free_map_close ();
 }
@@ -45,7 +45,7 @@ filesys_done (void)
    Fails if a file named NAME already exists,
    or if internal memory allocation fails. */
 bool
-filesys_create (const char *name, off_t initial_size) 
+filesys_create (const char *name, off_t initial_size)
 {
   //printf("creating %s\n\n", name);
   //add a directory parameter?
@@ -72,11 +72,11 @@ filesys_create (const char *name, off_t initial_size)
                   && allocate
                   && inode_c
                   && dir_addd);
-  if (!success && inode_sector != 0) 
+  if (!success && inode_sector != 0)
     free_map_release (inode_sector, 1);
   //dir_close (dir);
-  
-  
+
+
   //printf("name: %s, success?: %d\n\n",name, success);
   return success;
 }
@@ -109,7 +109,7 @@ filesys_open (const char *path)
    Fails if no file named NAME exists,
    or if an internal memory allocation fails. */
 bool
-filesys_remove (const char *name) 
+filesys_remove (const char *name)
 {
   bool success=false;
   struct inode* inode;
@@ -128,7 +128,7 @@ filesys_remove (const char *name)
     success = dir_remove (dir, fetch_filename(name));
   }
   //printf("there %d\n", success);
-  //dir_close (dir); 
+  //dir_close (dir);
 
   return success;
 }
@@ -171,7 +171,7 @@ fetch_from_path(const char* path){
 
   //Determine path leading up to end file/directory
   strlcpy(name,path,strlen(path)-strlen(expected_file)+1);
-  
+
   //printf("Made it here: %s, %s, %s'\n", path, name, expected_file);
 
   //Determine start of path, absolute or relative
@@ -180,7 +180,7 @@ fetch_from_path(const char* path){
   }
   if(is_absolute_path(name)){
     dir = dir_open_root();
-  } 
+  }
   else{
     //printf("relative path\n\n");
     dir = dir_reopen(thread_current()->working_dir);
@@ -212,7 +212,7 @@ fetch_from_path(const char* path){
 
     } else if(strcmp(token,".")==0){
       //Do Nothing
-    } 
+    }
     else {
 
       //Check if next directory in path exists
@@ -263,7 +263,7 @@ char* fetch_filename(const char* path){
         token = strtok_r (NULL, "/", &save_ptr)){
 
       strlcpy(result,token,strlen(token)+1);
-    } 
+    }
   free(name);
   return result;
 }
