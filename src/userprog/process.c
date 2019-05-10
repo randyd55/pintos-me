@@ -130,8 +130,8 @@ start_process (void *file_name_)
   } else {
     parent_thread->load_status = false;
     sema_up(&(parent_thread->exec_sema));
-    sema_up(&(thread_current()->parent_wait_sema)); //still failing multi-oom, not sure if we care, but if we do, try immediately waiting on this thread
-                                                    //after it fails loading
+    sema_up(&(thread_current()->parent_wait_sema));
+
     thread_exit (); /*if load has failed, exit the thread*/
   }
 
@@ -176,7 +176,7 @@ process_wait (tid_t child_tid UNUSED)
   status = child->exit_status;
   //Tells child it has collected exit status
   list_remove(&(child->child_elem));
-  sema_up(&(child-> parent_wait_sema)); 
+  sema_up(&(child-> parent_wait_sema));
 
 
   //Chineye Done
@@ -327,7 +327,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   char * fn = strtok_r(fn_temp, " ", &save_ptr);
 
   lock_acquire(&filesys_lock); /* ensure mutex for files*/
-  
+
   file = filesys_open (fn);
   if (file == NULL)
     {
@@ -615,7 +615,7 @@ setup_stack (void **esp, const char *file_name)
         memcpy(my_esp, argv[i], strlen(argv[i]) + 1);
         argv[i] = my_esp;
       }
-    
+
       //Add padding after strings stored to stack
       while((int) my_esp % 4 != 0){
         my_esp -= 1;
