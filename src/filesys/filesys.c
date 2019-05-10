@@ -13,6 +13,7 @@ struct block *fs_device;
 
 static void do_format (void);
 
+// Anthony here
 /* Initializes t+he file system module.
    If FORMAT is +true, reformats the file system. */
 void
@@ -61,6 +62,8 @@ filesys_create (const char *name, off_t initial_size)
     return false;
   }
 
+  // Anthony done
+
   //Allocate resources for file and add
   bool allocate = free_map_allocate(1, &inode_sector);
   bool inode_c = inode_create(inode_sector, initial_size);
@@ -75,6 +78,7 @@ filesys_create (const char *name, off_t initial_size)
   return success;
 }
 
+// Randy here
 
 /* Opens the file with the given NAME.
    Returns the new file if successful or a null pointer
@@ -145,6 +149,9 @@ do_format (void)
   free_map_close ();
 }
 
+//Randy done
+//Chineye here
+
 /*
 is_absolute_path, determines if the file path given is an abolute file path
 
@@ -168,6 +175,9 @@ is_absolute_path(const char* file)
 
   return false;
 }
+
+//Chineye done
+//Tim here
 
 
 /*
@@ -316,3 +326,5 @@ fetch_filename(const char* path){
   free(name);
   return result;
 }
+
+//Tim done
