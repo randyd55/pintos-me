@@ -9,7 +9,6 @@ struct file
     struct inode *inode;     /* File's inode. */
     off_t pos;               /* Current position. */
     bool deny_write;         /* Has file_deny_write() been called? */
-    //dir is_directory;       /* Determines if this file is a directory or not*/
   };
 
 /* Opens a file for the given INODE, of which it takes ownership,
@@ -19,7 +18,6 @@ struct file *
 file_open (struct inode *inode)
 {
   struct file *file = calloc (1, sizeof *file);
-  //printf("%d\n\n", inode == NULL);
   if (inode != NULL && file != NULL)
     {
       file->inode = inode;
@@ -36,7 +34,6 @@ file_open (struct inode *inode)
     {
       inode_close (inode);
       free (file);
-      printf("HEre\n");
       return NULL;
     }
 }
